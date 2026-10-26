@@ -1,0 +1,17 @@
+# Downloaded source files and generated batches
+/data/raw/
+/data/batches/
+
+# Python and Jupyter caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Local virtual environments and secrets
+.venv/
+.env
+
+# Local Spark runtime files
+spark-warehouse/
+metastore_db/
+derby.log
