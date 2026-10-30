@@ -1,6 +1,6 @@
 # Clickstream batch pipeline
 
-A learning project for building a local PySpark pipeline from online shopping click records. The current version inspects the source data, generates daily CSV batches, and reads one batch with an explicit Spark schema.
+A learning project for exploring online shopping clickstream data with pandas, local PySpark, and Databricks. The local notebooks inspect the source, generate daily CSV batches, and read one batch with Spark. A separate Databricks notebook cleans the full source in Spark, saves Delta tables, and summarizes browsing behavior.
 
 ## Current progress
 
@@ -10,8 +10,10 @@ Completed:
 - Build session and daily summaries as reference results.
 - Generate 135 daily CSV batches and compare every file with its source records after reading it back.
 - Start Spark locally and read the first batch with a defined 14-column schema.
+- In Databricks, validate the full source with an explicit schema, create `event_date`, and save cleaned click, session, and daily Delta tables.
+- Summarize session length, category browsing, daily activity, and repeat product views.
 
-Planned work includes cleaning rules, rejected-record handling, Parquet output, Spark summaries, duplicate-batch handling, failure recovery, automated tests, and performance measurements. The current notebooks do not implement a complete incremental pipeline.
+The Databricks workflow is separate from the local daily-batch workflow. The local notebooks do not yet implement a complete incremental pipeline; rejected-record handling, Parquet batches, duplicate-batch handling, failure recovery, automated tests, and performance measurements remain future work.
 
 ## Data
 
@@ -47,6 +49,7 @@ clickstream/
     notebooks/
       01_inspect_clickstream.ipynb
       02_spark_single_batch.ipynb
+      03_databricks_clickstream_pipeline.ipynb
 ```
 
 ## Run locally
@@ -80,6 +83,10 @@ Relative paths assume that the working directory is `data/notebooks/`. Check `Pa
 
 Running notebook 01 again replaces the same-named generated batch files. It leaves the original CSV unchanged. Notebook 02 may initially report that Java is unavailable; its later setup cells configure Java for the current kernel.
 
+### Run in Databricks
+
+Notebook 03 is a separate cloud workflow. In Databricks, create or use the `workspace.default.clickstream_data` volume, upload `e-shop clothing 2008.csv` to its root, and open the notebook with Serverless compute. Its input path is `/Volumes/workspace/default/clickstream_data/e-shop clothing 2008.csv`. The notebook writes three Delta tables in `workspace.default`: `clickstream_silver`, `clickstream_sessions`, and `clickstream_daily`. It uses overwrite mode, so rerunning the table-writing cells replaces those tables. The Databricks notebook has been run in the project owner's Free Edition workspace; other workspaces may need different catalog, schema, volume, or file paths.
+
 ## Expected results
 
 | Check | Expected result |
@@ -90,9 +97,12 @@ Running notebook 01 again replaces the same-named generated batch files. It leav
 | Batch verification | 135 files match their corresponding source records |
 | Spark startup check | `spark.range(10).count()` returns 10 |
 | First batch read | 3,181 rows and 14 columns |
+| Databricks cleaned table | 165,474 rows and 15 columns |
+| Databricks session summary | 24,026 rows |
+| Databricks daily summary | 135 rows; 165,474 clicks; 24,026 sessions |
 
-Both notebooks contain saved outputs. Batch comparisons use `pandas.testing.assert_frame_equal`; several exploratory checks print counts for review. Spark uses `FAILFAST` for parsing and checks the CSV header against the schema. These are initial checks; business validation and automated failure tests are planned.
+The notebooks contain saved outputs. Batch comparisons use `pandas.testing.assert_frame_equal`; several exploratory checks print counts for review. Spark uses `FAILFAST` for parsing and checks the CSV header against the schema. These are initial checks; business validation and automated failure tests are planned.
 
 ## Next work
 
-Add cleaning and quality checks to the single-batch Spark flow, write Parquet, and compare Spark summaries with the pandas reference results. Then extend the flow to multiple batches and test repeat submissions and failure recovery.
+Extend the local Spark workflow to process multiple daily batches, write Parquet, and compare its summaries with the pandas reference results. Then test repeat submissions, failure recovery, and performance. The Databricks notebook currently provides a separate full-file Delta workflow.
