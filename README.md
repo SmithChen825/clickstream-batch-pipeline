@@ -1,5 +1,7 @@
 # Online Shopping Clickstream Analysis
 
+[**View the interactive dashboard →**](https://smithchen825.github.io/clickstream-batch-pipeline/)
+
 A portfolio project exploring how visitors browsed an online clothing store, using **Python, PySpark, Databricks and Delta Lake**.
 
 **Dataset:** UCI Clickstream Data for Online Shopping · **Period:** April–August 2008 · **165,474 click events**
