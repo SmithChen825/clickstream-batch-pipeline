@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Online Shopping Browsing Behavior</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f4ef;color:#183d3a;font:16px/1.5 system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:5vw 5%}h1{font:clamp(2.3rem,5vw,4rem)/1.05 Georgia,serif;margin:0 0 12px}form,.cards{display:flex;gap:16px;flex-wrap:wrap;margin:26px 0}label{display:grid;font-size:.85rem;gap:4px}input,button{font:inherit;padding:8px 12px;border:1px solid #93aaa3;border-radius:5px;background:white;color:inherit}button{align-self:end;cursor:pointer}article,figure{background:white;padding:20px;border:1px solid #d2dcd6;border-radius:8px}article{flex:1;min-width:155px}strong{display:block;font-size:2rem;font-variant-numeric:tabular-nums}figure{margin:0}h2{margin:0;font:1.5rem Georgia,serif}svg{display:block;width:100%;height:265px}figcaption,footer{font-size:.85rem;color:#48645f}footer{margin-top:22px}a{color:inherit}
+.breakdowns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+@media(max-width:760px){.breakdowns {grid-template-columns:1fr}}
+.bars {list-style:none;padding:0;margin:16px 0 0}
+.bars li {display:grid;grid-template-columns:5em 1fr 4em;align-items:center;gap:8px;margin:12px 0}
+.category-bar {height:16px;background:#00786d;border-radius:2px}
+.category-value {text-align:right;font-variant-numeric:tabular-nums}
+.entry {margin:20px 0;overflow-x:auto}table {width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td {padding:8px;text-align:right;border-bottom:1px solid #d2dcd6}th:first-child,td:first-child{text-align:left}
+.entry button[aria-pressed=true] {background:#185c54;color:white}
+.bars li {display:block;margin:4px 0}
+.bars button {display:grid;grid-template-columns:5.5em 1fr 4em;align-items:center;gap:8px;width:100%;padding:6px;text-align:left;border:1px solid transparent}
+.bars button:hover,.bars button[aria-pressed=true] {background:#e2efeb;border-color:#709a90}
+#chart rect[role=button] {cursor:pointer}
+#chart rect[role=button]:hover,#chart rect[role=button]:focus {fill:rgba(0,120,109,.12)}
+/* Highlight the metric under the pointer across all four categories. */
+.entry table :is(th,td).column-active {background:#edf5f1}
+.finding h1 {text-wrap:balance}.finding p {max-width:68ch;font-size:1.17rem}.finding b {color:#005e54}
+</style>
+<main><header class="finding">
+<h1>Where do shoppers keep browsing after their first click?</h1>
+<p>Across 24,026 sessions, the share of shoppers who clicked again was <b>highest when the first click was on trousers (82.1%)</b> and <b>lowest when it was on blouses (73.7%)</b>.</p>
+</header>
+<form><label>Start date<input type="date" id="start"></label><label>End date<input type="date" id="end"></label><button type="button" id="reset">Reset dates</button></form>
+<p>Click a day, category or session length to filter the dashboard. Session length counts all clicks in the session.</p><button type="button" id="clear">Clear all filters</button><p id="status" role="status"></p>
+<figure class="entry"><h2>Continued browsing by first category</h2>
+<p>For each first category, the rate is the share of starting sessions with a second click. Only the start and end dates change this table. Select a category to explore its sessions below.</p>
+<button type="button" id="allEntries">All starting categories</button>
+<table><thead><tr><th>First category</th><th>Starting sessions</th><th>Continued sessions</th><th>Continuation rate</th></tr></thead><tbody id="entries"></tbody></table>
+<p>Over the full study period, sessions starting with trousers reached a second click 8.4 percentage points more often than those starting with blouses. Next, compare the two categories within each of the six photo positions on the page to see whether the gap persists.</p>
+<a href="continuation-sql.html">View SQL</a></figure>
+<div class="cards"><article>Total clicks<strong id="clicks">—</strong></article><article>Total sessions<strong id="sessions">—</strong></article><article><span id="avg-label">Avg clicks per session</span><strong id="avg">—</strong></article></div>
+<figure><h2>Daily clicks</h2><svg id="chart" role="group" aria-label="Daily click counts for the selected dates"></svg><figcaption id="caption"></figcaption></figure>
+<div class="breakdowns"><figure><h2>Clicks by category</h2><ul class="bars" id="categories" aria-label="Clicks by category for the selected dates"></ul></figure>
+<figure><h2>Clicks per session distribution</h2><ul class="bars" id="depth" aria-label="Share of sessions by click count"></ul></figure></div>
+<footer>Source: <a href="https://archive.ics.uci.edu/dataset/553/clickstream+data+for+online+shopping">UCI Clickstream Data for Online Shopping</a> · <a href="data/daily_traffic.csv">Daily data (CSV)</a> &middot; <a href="https://github.com/SmithChen825/clickstream-batch-pipeline">Project repository</a></footer></main>
+<script type="module">
+const el = id => document.getElementById(id);
+const start = el('start'), end = el('end'), chart = el('chart');
+const number = new Intl.NumberFormat('en-US');
+const categoryNames = ['Trousers', 'Skirts', 'Blouses', 'Sale'];
+let days = [];
+let entry = 0;
+const selected = {categories:null, depth:null};
+let selectedDate = null;
+el('clear').onclick = () => {
+  entry = 0;
+  selected.categories = selected.depth = null;
+  reset();
+};
+const rate = (part,total) => total ? (100 * part / total).toFixed(1) + '%' : '—';
+function selectEntry(value) {
+  entry = value;
+  render();
+}
+el('allEntries').onclick = () => selectEntry(0);
+function renderEntries(records) {
+  el('allEntries').setAttribute('aria-pressed', String(entry === 0));
+  const body = el('entries');
+  body.replaceChildren();
+  categoryNames.forEach((name,i) => {
+    const group = records.filter(row => row.entry === i + 1);
+    const sessions = group.reduce((sum,row) => sum + row.sessions, 0);
+    const continued = group.reduce((sum,row) => sum + row.sessions - row.depth[0], 0);
+    const row = body.insertRow();
+    const button = document.createElement('button');
+    button.textContent = name;
+    button.setAttribute('aria-pressed', String(entry === i + 1));
+    button.onclick = () => {
+      selectEntry(entry === i + 1 ? 0 : i + 1);
+      body.rows[i].cells[0].querySelector('button').focus();
+    };
+    const first = row.insertCell();
+    first.append(button);
+    first.title = 'Filter to sessions starting in ' + name;
+    const metrics = [
+      [number.format(sessions), 'Sessions starting in ' + name],
+      [number.format(continued), 'Sessions starting in ' + name + ' with at least two clicks'],
+      [rate(continued,sessions), number.format(continued) + ' continued / ' + number.format(sessions) + ' starting sessions']
+    ];
+    for (const [value, description] of metrics) {
+      const cell = row.insertCell();
+      cell.textContent = value;
+      cell.title = description + ': ' + value;
+    }
+  });
+}
+const entryTable = el('entries').closest('table');
+function highlightColumn(index) {
+  for (const row of entryTable.rows) {
+    for (const cell of row.cells) cell.classList.toggle('column-active', cell.cellIndex === index);
+  }
+}
+entryTable.onpointerover = event => highlightColumn(event.target.closest('td,th')?.cellIndex);
+entryTable.onpointerleave = () => highlightColumn(null);
+entryTable.onfocusin = event => highlightColumn(event.target.closest('td,th')?.cellIndex);
+entryTable.onfocusout = () => highlightColumn(null);
+function mark(tag, attrs, text = '') {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  node.textContent = text;
+  chart.append(node);
+  return node;
+}
+function renderBars(list, names, totals, scale, format) {
+  list.replaceChildren();
+  names.forEach((name, i) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = name;
+    const bar = document.createElement('span');
+    bar.className = 'category-bar';
+    bar.style.width = (scale ? 100 * totals[i] / scale : 0) + '%';
+    const value = document.createElement('span');
+    value.className = 'category-value';
+    value.textContent = format(totals[i]);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('aria-pressed', String(selected[list.id] === i));
+    button.onclick = () => {
+      selected[list.id] = selected[list.id] === i ? null : i;
+      render();
+      list.children[i].querySelector('button').focus();
+    };
+    button.append(label, bar, value);
+    item.append(button);
+    list.append(item);
+  });
+}
+
+function render() {
+  const records = days.filter(d => start.value && end.value && d.date >= start.value && d.date <= end.value);
+
+  const matches = record =>
+    (selected.depth === null || record.bucket === selected.depth) &&
+    (selected.categories === null || (record.mask & (1 << selected.categories)) !== 0);
+  // Compare all starting sessions within the date inputs.
+  renderEntries(records);
+  const daily = new Map();
+  for (const record of records) {
+    if (!daily.has(record.date)) daily.set(record.date, {date:record.date, clicks:0, sessions:0, categories:[0,0,0,0], depth:[0,0,0,0]});
+    if ((entry && entry !== record.entry) || !matches(record)) continue;
+    const day = daily.get(record.date);
+    day.clicks += selected.categories === null ? record.clicks : record.categories[selected.categories];
+    day.sessions += record.sessions;
+    record.categories.forEach((count,i) => {
+      if (selected.categories === null || selected.categories === i) day.categories[i] += count;
+    });
+    record.depth.forEach((count,i) => day.depth[i] += count);
+  }
+  const trend = [...daily.values()];
+  const rows = selectedDate ? trend.filter(day => day.date === selectedDate) : trend;
+  el('avg-label').textContent = selected.categories === null
+    ? 'Avg clicks per session'
+    : 'Avg ' + categoryNames[selected.categories] + ' clicks per session';
+  chart.replaceChildren();
+  if (!rows.length) {
+    el('status').textContent = 'Choose a valid date range within the dataset.';
+    for (const id of ['clicks','sessions','avg']) el(id).textContent = '—';
+    el('caption').textContent = '';
+    el('categories').replaceChildren();
+    el('depth').replaceChildren();
+    return;
+  }
+  const clicks = rows.reduce((sum,d) => sum+d.clicks,0);
+  const sessions = rows.reduce((sum,d) => sum+d.sessions,0);
+  const depthLabels = ['1 click', '2-5 clicks', '6-10 clicks', '11+ clicks'];
+  // Keep the alternatives visible in the chart where the user made a selection.
+  const categoryTotals = [0,0,0,0];
+  const sessionTotals = [0,0,0,0];
+  for (const record of records) {
+    if (selectedDate && record.date !== selectedDate) continue;
+    if (entry && record.entry !== entry) continue;
+    if (selected.depth === null || record.bucket === selected.depth) {
+      record.categories.forEach((count,i) => categoryTotals[i] += count);
+    }
+    if (selected.categories === null || (record.mask & (1 << selected.categories))) {
+      sessionTotals[record.bucket] += record.sessions;
+    }
+  }
+  const comparisonSessions = sessionTotals.reduce((sum,count) => sum + count,0);
+  renderBars(el('categories'), categoryNames, categoryTotals, Math.max(...categoryTotals), number.format);
+  renderBars(el('depth'), depthLabels, sessionTotals, comparisonSessions, count => rate(count,comparisonSessions));
+  el('clicks').textContent = number.format(clicks);
+  el('sessions').textContent = number.format(sessions);
+  el('avg').textContent = sessions ? (clicks/sessions).toFixed(2) : '—';
+  el('status').textContent = rows.length + (rows.length === 1 ? ' day selected' : ' days selected') + ' · ' + (entry ? 'Sessions starting in ' + categoryNames[entry-1] : 'All starting categories');
+  if (selected.categories !== null) el('status').textContent += ' | Clicks in ' + categoryNames[selected.categories];
+  if (selected.depth !== null) el('status').textContent += ' | Session length: ' + depthLabels[selected.depth];
+  const width = chart.clientWidth || 700, left = 47, right = width-12;
+  const peak = trend.reduce((a,b) => a.clicks >= b.clicks ? a : b);
+  const step = Math.max(100,Math.ceil(peak.clicks/4/100)*100);
+  const x = i => trend.length === 1 ? (left+right)/2 : left+(right-left)*i/(trend.length-1);
+  const y = n => 226-201*n/(4*step);
+  for (let i=0;i<=4;i++) {
+    mark('line',{x1:left,x2:right,y1:y(i*step),y2:y(i*step),stroke:'#d9e2de'});
+    mark('text',{x:left-5,y:y(i*step)+4,'text-anchor':'end','font-size':12},number.format(i*step));
+  }
+  mark('polyline',{points:trend.map((d,i)=>x(i)+','+y(d.clicks)).join(' '),stroke:'#00786d','stroke-width':2.5,fill:'none'});
+  mark('circle',{cx:x(trend.indexOf(peak)),cy:y(peak.clicks),r:4,fill:'#00786d'});
+  mark('text',{x:left,y:251,'font-size':12},trend[0].date);
+  if(trend.length>1) mark('text',{x:right,y:251,'text-anchor':'end','font-size':12},trend.at(-1).date);
+  if (selectedDate) {
+    const i = trend.findIndex(day => day.date === selectedDate);
+    mark('circle',{cx:x(i),cy:y(trend[i].clicks),r:6,fill:'#fff',stroke:'#00786d','stroke-width':3});
+  }
+  trend.forEach((day,i) => {
+    const from = i ? (x(i-1)+x(i))/2 : left;
+    const to = i+1 < trend.length ? (x(i)+x(i+1))/2 : right;
+    const description = day.date + ': ' + number.format(day.clicks) + ' clicks';
+    const hit = mark('rect',{x:from,y:12,width:to-from,height:218,fill:'transparent',role:'button',tabindex:0,'aria-label':description,'aria-pressed':String(day.date === selectedDate)});
+    const title = document.createElementNS(chart.namespaceURI,'title');
+    title.textContent = description;
+    hit.append(title);
+    hit.onclick = () => {
+      selectedDate = selectedDate === day.date ? null : day.date;
+      render();
+    };
+    hit.onkeydown = event => {
+      if (event.key === 'Enter' || event.key === ' ') {event.preventDefault();hit.onclick();}
+    };
+  });
+  el('caption').textContent = 'Peak in date range: '+number.format(peak.clicks)+' clicks on '+peak.date+'.';
+  if (selectedDate) el('caption').textContent = 'Selected: ' + selectedDate + ' | ' + number.format(rows[0].clicks) + ' clicks.';
+}
+function reset() { selectedDate=null; start.value=days[0].date; end.value=days.at(-1).date; render(); }
+try {
+  const response = await fetch('data/session_groups.csv');
+  if (!response.ok) throw Error();
+  const lines = (await response.text()).trim().split(/\r?\n/);
+  days = lines.slice(1).map(line => {
+    const [date,entry,bucket,mask,sessions,...values] = line.split(',');
+    const categories = values.map(Number);
+    const depth = [0,0,0,0];
+    depth[Number(bucket)] = Number(sessions);
+    return {date,entry:Number(entry),bucket:Number(bucket),mask:Number(mask),sessions:Number(sessions),
+      clicks:categories.reduce((sum,n) => sum+n,0),categories,depth};
+  });
+  for(const input of [start,end]) {input.min=days[0].date;input.max=days.at(-1).date;input.oninput=() => {selectedDate=null;render();};}
+  el('reset').onclick=reset;
+  reset();
+  new ResizeObserver(render).observe(chart);
+} catch { el('status').textContent='Could not load daily traffic. Open this page through a web server and check the CSV link.'; }
+</script></html>

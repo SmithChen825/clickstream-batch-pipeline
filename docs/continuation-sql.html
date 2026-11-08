@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Continuation rate by first category | SQL</title>
+<style>body{max-width:54rem;margin:3rem auto;padding:0 1rem;background:#f5f4ef;color:#183d3a;font:1rem/1.6 system-ui}a{color:inherit}h1{font:2rem Georgia,serif}pre{overflow:auto;padding:1rem;background:white;border:1px solid #d2dcd6}</style>
+<main><a href="./">Back to dashboard</a><h1>Continuation rate by first category</h1><pre><code>-- Set these dates to the dashboard&#x27;s start and end dates (inclusive).
+WITH sessions AS (
+    SELECT session_id,
+           MIN_BY(main_category, click_order) AS first_category,
+           COUNT(*) AS clicks
+    FROM workspace.default.clickstream_silver
+    WHERE event_date BETWEEN DATE &#x27;2008-04-01&#x27; AND DATE &#x27;2008-08-13&#x27;
+    GROUP BY session_id
+)
+SELECT CASE first_category
+           WHEN 1 THEN &#x27;Trousers&#x27;
+           WHEN 2 THEN &#x27;Skirts&#x27;
+           WHEN 3 THEN &#x27;Blouses&#x27;
+           WHEN 4 THEN &#x27;Sale&#x27;
+       END AS category,
+       COUNT(*) AS starting_sessions,
+       COUNT_IF(clicks &gt;= 2) AS continued_sessions,
+       ROUND(100.0 * COUNT_IF(clicks &gt;= 2) / COUNT(*), 1) AS continuation_rate_pct
+FROM sessions
+GROUP BY first_category
+ORDER BY first_category;</code></pre></main></html>
