@@ -36,7 +36,7 @@ The daily files simulate date-based batches from a static historical dataset. Th
 
 - The dataset contains **165,474 clicks** across **24,026 sessions** and **135 dates**, from **2008-04-01 to 2008-08-13**.
 - Sessions have a median of **4 clicks** and an average of about **6.89 clicks**. The longest observed session has **195 clicks**.
-- **Trousers** received the most clicks (**49,742**). **Skirts** had the highest average listed price (**$51.19**); Sale had the lowest (**$36.23**).
+- **Trousers** received the most clicks (**49,742**). The average listed price per click was highest for Skirts ($51.19) and lowest for Sale ($36.23).
 - Daily clicks and daily sessions have a strong positive correlation (**r = 0.949**) across the observed dates.
 - **6,046 sessions** included at least one repeat product view. This means a product code appeared more than once in a session; it does not explain why the visitor returned to it.
 
