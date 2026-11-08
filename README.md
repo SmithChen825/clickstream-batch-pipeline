@@ -21,10 +21,11 @@ The dataset records browsing events. It does not include purchases, orders or co
 
 ## 🧰 Solution
 
-The work has two complementary parts:
+### Data pipeline
 
 1. **Local exploration:** pandas checks the source structure and data quality, builds reference summaries, and splits the static dataset into 135 daily CSV files. Every batch was read back and compared with its source records.
 2. **Databricks processing:** Spark reads the uploaded source with an explicit schema, standardizes field names, adds an event date, checks key quality, and saves the cleaned data and analytical summaries as Delta tables.
+3. The dashboard reads aggregate CSV files from the repository. GitHub Pages serves the charts and filters directly in the browser.
 
 The Databricks tables are:
 
@@ -36,6 +37,7 @@ The daily files simulate date-based batches from a static historical dataset. Th
 
 ## 📌 Key Findings
 
+- Sessions starting in Trousers had the highest second-click rate (**82.1%**), while those starting in Blouses had the lowest (**73.7%**), a gap of **8.4 percentage points**. A second click in any category counts.
 - The dataset contains **165,474 clicks** across **24,026 sessions** and **135 dates**, from **2008-04-01 to 2008-08-13**.
 - Sessions have a median of **4 clicks** and an average of about **6.89 clicks**. The longest observed session has **195 clicks**.
 - **Trousers** received the most clicks (**49,742**). The average listed price per click was highest for Skirts ($51.19) and lowest for Sale ($36.23).
@@ -44,7 +46,7 @@ The daily files simulate date-based batches from a static historical dataset. Th
 
 ## 📊 Dashboard
 
-An interactive dashboard is a planned next step. The current analysis and saved results are available in the notebooks and Databricks Delta tables.
+The [dashboard is live on GitHub Pages](https://smithchen825.github.io/clickstream-batch-pipeline/). Choose a date range to compare second-click rates by starting category. Select a starting category to explore which categories those sessions browsed and how many clicks they recorded. [View the SQL behind the rates](sql/daily_entry_categories.sql).
 
 ## 🧪 Data Quality and Limitations
 
