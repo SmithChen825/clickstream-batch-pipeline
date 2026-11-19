@@ -2,6 +2,8 @@
 
 [**View the interactive dashboard →**](https://smithchen825.github.io/clickstream-batch-pipeline/)
 
+[**Read the business report →**](BUSINESS_REPORT.md) — findings, recommended next steps and limitations.
+
 A portfolio project exploring how visitors browsed an online clothing store, using **Python, PySpark, Databricks and Delta Lake**.
 
 **Dataset:** UCI Clickstream Data for Online Shopping · **Period:** April–August 2008 · **165,474 click events**
@@ -57,6 +59,8 @@ These batches come from a static historical dataset, uploaded manually. The Job 
 
 ## 📊 Dashboard
 
+The [business report](BUSINESS_REPORT.md) explains what the browsing patterns support, why the Blouses entry experience merits investigation, and what to check before proposing a change.
+
 The [dashboard is live on GitHub Pages](https://smithchen825.github.io/clickstream-batch-pipeline/). Choose a date range to compare second-click rates by starting category. Select a starting category to explore which categories those sessions browsed and how many clicks they recorded. [View the SQL behind the rates](sql/daily_entry_categories.sql).
 
 ## 🧪 Data Quality and Limitations
@@ -73,6 +77,7 @@ Notebook 03 runs in Databricks with the source CSV uploaded to the `workspace.de
 
 | File | Purpose |
 | --- | --- |
+| `BUSINESS_REPORT.md` | core findings, business recommendations, metric definitions and limitations |
 | `data/notebooks/01_inspect_clickstream.ipynb` | pandas data inspection, reference summaries and daily batch checks |
 | `data/notebooks/02_spark_single_batch.ipynb` | local PySpark setup and single-batch read |
 | `data/notebooks/03_databricks_clickstream_pipeline.ipynb` | Databricks Spark processing, Delta tables and browsing analysis |
