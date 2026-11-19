@@ -56,15 +56,23 @@ The data has no purchase outcomes or within-day timestamps. It cannot support co
 
 ## 🗂️ Project Files
 
+Read notebook 01 for the pandas checks and daily batch exports, then notebook 02 for the local Spark batch-reading exercise. Run both from `data/notebooks/` in the local environment.
+
+Notebook 03 runs in Databricks with the source CSV uploaded to the `workspace.default.clickstream_data` volume. It reads the full source file and creates the Delta tables used for analysis. Run its cells in order. The SQL in `sql/daily_entry_categories.sql` uses the resulting `workspace.default.clickstream_silver` table.
+
 | File | Purpose |
 | --- | --- |
 | `data/notebooks/01_inspect_clickstream.ipynb` | pandas data inspection, reference summaries and daily batch checks |
 | `data/notebooks/02_spark_single_batch.ipynb` | local PySpark setup and single-batch read |
 | `data/notebooks/03_databricks_clickstream_pipeline.ipynb` | Databricks Spark processing, Delta tables and browsing analysis |
+| `sql/daily_entry_categories.sql` | daily summaries by first category, including the counts used for continuation rates |
+| `docs/index.html` | published dashboard and browser-side filtering |
+| `docs/data/` | aggregate CSVs used by the dashboard |
+| `docs/continuation-sql.html` | SQL explanation available from the dashboard |
 | `environment.yml` | local Python environment |
 | `.gitignore` | excludes raw data and generated batches |
 
-Raw source files and generated CSV batches are excluded from Git.
+Raw source files and generated daily batches are excluded from Git. The aggregate CSVs in docs/data/ are committed so the public dashboard can load them.
 
 ## 📚 Data Source and Attribution
 
