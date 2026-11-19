@@ -2,11 +2,15 @@
 
 [**View the interactive dashboard →**](https://smithchen825.github.io/clickstream-batch-pipeline/)
 
-[**Read the business report →**](BUSINESS_REPORT.md) — findings, recommended next steps and limitations.
+[**Business report**](BUSINESS_REPORT.md) · [**Pipeline validation record**](reports/pipeline_validation.md) · [**Pipeline notebook**](data/notebooks/04_incremental_clickstream_trial.ipynb)
 
 A portfolio project exploring how visitors browsed an online clothing store, using **Python, PySpark, Databricks and Delta Lake**.
 
-**Dataset:** UCI Clickstream Data for Online Shopping · **Period:** April–August 2008 · **165,474 click events**
+**165,474 clicks · 24,026 sessions · 135 days** | UCI Clickstream Data for Online Shopping, April–August 2008
+
+[![Live dashboard showing continuation rates by first category, click and session totals, daily traffic, category activity and session depth](assets/dashboard-preview.jpg)](https://smithchen825.github.io/clickstream-batch-pipeline/)
+
+*Full-period preview (April 1–August 13, 2008). Click the image to explore dates, categories and session lengths in the live dashboard. The business report explains the findings and recommendations; the validation record documents the pipeline checks and observed runs.*
 
 ## 🔎 Overview
 
