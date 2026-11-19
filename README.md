@@ -8,7 +8,7 @@ A portfolio project exploring how visitors browsed an online clothing store, usi
 
 ## 🔎 Overview
 
-The project turns click-level records into session and daily summaries, then examines browsing depth, product-category activity and repeat product views. The analysis uses a local pandas workflow for initial data checks and Databricks Spark for full-file processing and Delta tables.
+The project turns click-level records into session and daily summaries, then examines browsing depth, product-category activity and repeat product views. The analysis starts with local pandas checks and continues in Databricks with incremental CSV ingestion, Delta tables and a scheduled Job. The pipeline has processed all 135 daily files and reconciled 165,474 clicks across 24,026 sessions.
 
 ## 💼 Business Questions
 
@@ -21,19 +21,30 @@ The dataset records browsing events. It does not include purchases, orders or co
 
 ## 🧰 Solution
 
-### Data pipeline
+### ⚙️ Data pipeline
 
-1. **Local exploration:** pandas checks the source structure and data quality, builds reference summaries, and splits the static dataset into 135 daily CSV files. Every batch was read back and compared with its source records.
-2. **Databricks processing:** Spark reads the uploaded source with an explicit schema, standardizes field names, adds an event date, checks key quality, and saves the cleaned data and analytical summaries as Delta tables.
-3. The dashboard reads aggregate CSV files from the repository. GitHub Pages serves the charts and filters directly in the browser.
+1. **Prepare daily batches:** pandas checks the source data and splits it into 135 daily CSV files, each read back and compared with its source records. The files are uploaded to a Unity Catalog volume.
+2. **Ingest into Bronze:** Auto Loader discovers new CSVs and appends them to Delta using `availableNow`. A persistent checkpoint tracks ingestion progress. Each run reconciles Bronze against the retained source files by file count, row count and business records.
+3. **Validate and rebuild Silver:** Spark standardizes product codes, derives the event date, checks missing values, category codes and duplicate click keys, then rebuilds the cleaned Delta table from accumulated Bronze data.
+4. **Build Gold summaries:** session, daily and daily entry-category tables support browsing-depth and continuation-rate analysis. Totals reconcile with Silver, and saved records are compared with the calculated results.
+5. **Schedule processing:** a Databricks Job runs the notebook daily on serverless compute. A scheduler-triggered run succeeded; adding a third day and rerunning without new files also passed validation. The final load processed all 135 files successfully.
+6. **Publish the dashboard:** GitHub Pages serves the committed aggregate data and interactive charts. Exporting updated dashboard data and committing it to GitHub is a separate step; the Databricks Job does not refresh the public site.
 
-The Databricks tables are:
+The scheduled pipeline writes these Delta tables in `workspace.default`:
 
-- `workspace.default.clickstream_silver` — cleaned click-level records
-- `workspace.default.clickstream_sessions` — one row per session
-- `workspace.default.clickstream_daily` — one row per date
+| Table | Grain / role |
+| --- | --- |
+| `clickstream_bronze_trial` | original click fields plus source-file and ingestion metadata; incremental append |
+| `clickstream_silver_trial` | validated click-level records; rebuilt each run |
+| `clickstream_sessions_trial` | one row per session |
+| `clickstream_daily_trial` | one row per date |
+| `clickstream_entry_daily_trial` | one row per date and first category |
 
-The daily files simulate date-based batches from a static historical dataset. They do not represent real-time ingestion.
+The `_trial` names and `two_day_trial` input path were retained from the pilot; they now hold the full dataset. Notebook 03's original analysis tables remain separate.
+
+**Verified full load:** 135 files → 165,474 clicks → 24,026 sessions; zero rescued rows or duplicate click keys. [View the pipeline notebook](data/notebooks/04_incremental_clickstream_trial.ipynb) · [View the validation record](reports/pipeline_validation.md).
+
+These batches come from a static historical dataset, uploaded manually. The Job automates processing after files arrive; it does not collect new live events or automate the upload itself.
 
 ## 📌 Key Findings
 
@@ -58,13 +69,15 @@ The data has no purchase outcomes or within-day timestamps. It cannot support co
 
 Read notebook 01 for the pandas checks and daily batch exports, then notebook 02 for the local Spark batch-reading exercise. Run both from `data/notebooks/` in the local environment.
 
-Notebook 03 runs in Databricks with the source CSV uploaded to the `workspace.default.clickstream_data` volume. It reads the full source file and creates the Delta tables used for analysis. Run its cells in order. The SQL in `sql/daily_entry_categories.sql` uses the resulting `workspace.default.clickstream_silver` table.
+Notebook 03 runs in Databricks with the source CSV uploaded to the `workspace.default.clickstream_data` volume. It reads the full source file and creates the Delta tables used for analysis. Run its cells in order. Notebook 04 adds the scheduled incremental pipeline and preserves separate `_trial` tables. The SQL in `sql/daily_entry_categories.sql` uses the resulting `workspace.default.clickstream_silver` table.
 
 | File | Purpose |
 | --- | --- |
 | `data/notebooks/01_inspect_clickstream.ipynb` | pandas data inspection, reference summaries and daily batch checks |
 | `data/notebooks/02_spark_single_batch.ipynb` | local PySpark setup and single-batch read |
 | `data/notebooks/03_databricks_clickstream_pipeline.ipynb` | Databricks Spark processing, Delta tables and browsing analysis |
+| `data/notebooks/04_incremental_clickstream_trial.ipynb` | Auto Loader ingestion, Bronze/Silver/Gold processing and dynamic reconciliation; run by a scheduled Job |
+| `reports/pipeline_validation.md` | observed scheduled-run, incremental-load, rerun and 135-day validation results |
 | `sql/daily_entry_categories.sql` | daily summaries by first category, including the counts used for continuation rates |
 | `docs/index.html` | published dashboard and browser-side filtering |
 | `docs/data/` | aggregate CSVs used by the dashboard |
